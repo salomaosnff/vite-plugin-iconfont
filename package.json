@@ -1,0 +1,11 @@
+{
+	"devDependencies": {
+		"@types/node": "^20.3.0",
+		"tsup": "^6.7.0",
+		"tsx": "^3.12.7",
+		"vite": "^4.3.9"
+	},
+	"dependencies": {
+		"webfont": "^11.2.26"
+	}
+}
