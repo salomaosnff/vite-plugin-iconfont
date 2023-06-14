@@ -1,13 +1,15 @@
-import type { Plugin } from 'vite'
+import { join, normalize } from 'path'
+import { type Plugin, normalizePath } from 'vite'
 import { webfont } from 'webfont'
 
+export type WebfontFormat = 'svg' | 'ttf' | 'woff' | 'woff2' | 'eot'
+
 export interface WebfontIconsOptions {
-  files: string[]
+  dirs: string[]
   fontName: string
-  templateClassName: string
-  formats: Array<'svg' | 'ttf' | 'woff' | 'woff2' | 'eot'>
-  fontPath: string
+  formats: WebfontFormat[]
   selector: string
+  fontPath: string
 }
 
 const VIRTUAL_MODULE_ID = 'icons.css'
@@ -15,12 +17,11 @@ const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
 
 function getOptions(options: Partial<WebfontIconsOptions>): WebfontIconsOptions {
   return {
-    files: options.files ?? ['icons/**/*.svg'],
+    dirs:( options.dirs ?? ['./icons/']).map(d => normalizePath(d + '/**/*.svg')),
     fontName: options.fontName ?? 'AppIcons',
-    fontPath: options.fontPath ?? 'fonts',
-    formats: options.formats ?? ['svg', 'ttf', 'woff', 'woff2', 'eot'],
+    formats: options.formats ?? ['woff2', 'woff', 'ttf', 'eot', 'svg'], 
     selector: options.selector ?? '.icon',
-    templateClassName: options.templateClassName ?? 'icon',
+    fontPath: options.fontPath ?? 'fonts',
   }
 }
 
@@ -89,8 +90,14 @@ export default function IconFontPlugin(config: Partial<WebfontIconsOptions>): Pl
       isBuild = config.command === 'build'
     },
     resolveId(source) {
-      if (source === VIRTUAL_MODULE_ID)
+      if (source === VIRTUAL_MODULE_ID) {
+        if (!isBuild) {
+          options.dirs.forEach((dir) => {
+            this.addWatchFile(dir)
+          })
+        }
         return VIRTUAL_MODULE_ID
+      }
     },
 
     async load(id) {
@@ -102,7 +109,7 @@ export default function IconFontPlugin(config: Partial<WebfontIconsOptions>): Pl
         return
 
       const result = await webfont({
-        files: options.files,
+        files: options.dirs,
         fontName: options.fontName,
         formats: options.formats,
         sort: true,
@@ -116,24 +123,24 @@ export default function IconFontPlugin(config: Partial<WebfontIconsOptions>): Pl
         if (!result[format])
           return
 
-        const fileName = `assets/${options.fontPath}/${options.fontName}.${format}`
+        const fileName = normalizePath(`${options.fontPath}/${options.fontName}.${format}`)
 
         if (isBuild) {
           const ref = this.emitFile({
             type: 'asset',
-            fileName,
+            fileName: `assets/${fileName}`,
             source: result[format],
           })
 
           files[format] = {
-            url: `/${options.fontPath}/${options.fontName}.${format}`,
+            url: `/assets/${fileName}`,
             mime: mimeTypes[format],
             data: result[format],
           }
         }
         else {
           files[format] = {
-            url: `/${fileName}`,
+            url: `/assets/${fileName}`,
             mime: mimeTypes[format],
             data: result[format],
           }
